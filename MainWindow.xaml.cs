@@ -15,30 +15,18 @@ using System.Windows.Shapes;
 
 namespace SingletonDB
 {
-    /// <summary>
-    /// Логика взаимодействия для MainWindow.xaml
-    /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : DatabaseWindow // Наследуемся от DatabaseWindow
     {
         public MainWindow()
         {
             InitializeComponent();
-            try
-            {
-                var db = DataBaseConnection.Instance;
-                var connection = db.GetConnection();
-                MessageBox.Show("Подключение к базе данных MySQL успешно установлено.");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка: {ex.Message}");
-            }
+            // Теперь здесь не нужно прописывать логику БД — она уже в базовом классе!
         }
-        //Закрытие соединения
-        protected override void OnClosed(EventArgs e)
+
+        private void Button_Click(object sender, RoutedEventArgs e)
         {
-            DataBaseConnection.Instance.CloseConnection(); 
-            base.OnClosed(e);
+            NewWindow newWindow = new NewWindow();
+            newWindow.Show();
         }
     }
 }

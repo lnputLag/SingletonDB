@@ -11,7 +11,7 @@ using System.Windows;
 
 namespace SingletonDB
 {
-    public sealed class DataBaseConnection
+    public sealed class DataBaseConnection : IDisposable
     {
         /// <summary>
         ///  Статическое поле, которое хранит единственный экземпляр класса "DataBaseConnection"
@@ -43,6 +43,8 @@ namespace SingletonDB
         /// </summary>
         private string _connectionString;
 
+        private int _activeWindowsCount = 0; // Счётчик активных окон
+
         // Приватный конструктор
         private DataBaseConnection()
         {
@@ -73,30 +75,64 @@ namespace SingletonDB
             }
         }
 
-        public MySqlConnection GetConnection()
+        // Метод для открытия соединения (вызывается при создании окна)
+        public void NotifyWindowOpened()
         {
-            if (_connection.State != ConnectionState.Open)
+            lock (_lock)
             {
-                try
+                _activeWindowsCount++;
+                if (_activeWindowsCount == 1) // Первое окно — открываем соединение
                 {
-                    _connection.Open();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка подключения к БД: {ex.Message}");
-                    throw;
+                    try
+                    {
+                        if (_connection.State != ConnectionState.Open)
+                            _connection.Open();
+                        MessageBox.Show("Подключение к базе данных MySQL успешно установлено.");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Ошибка подключения: {ex.Message}");
+                    }
                 }
             }
-            return _connection;
         }
 
-        //Mетод для закрытия соединения
-        public void CloseConnection()
+        // Метод для закрытия соединения (вызывается при закрытии окна)
+        public void NotifyWindowClosed()
         {
-            if (_connection.State == ConnectionState.Open)
+            lock (_lock)
             {
-                _connection.Close();
+                _activeWindowsCount--;
+                if (_activeWindowsCount <= 0) // Все окна закрыты
+                {
+                    CloseConnection();
+                    _activeWindowsCount = 0; // Сброс счётчика
+                }
             }
         }
+
+        public MySqlConnection GetConnection()
+        {
+            lock (_lock)
+            {
+                if (_connection.State != ConnectionState.Open)
+                    _connection.Open();
+                return _connection;
+            }
+        }
+
+        private void CloseConnection()
+        {
+            if (_connection?.State == ConnectionState.Open)
+                _connection.Close();
+        }
+
+        public void Dispose()
+        {
+            CloseConnection();
+            _connection?.Dispose();
+        }
+
+
     }
 }
